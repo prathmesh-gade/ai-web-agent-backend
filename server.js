@@ -27,6 +27,11 @@ app.use(cors({ origin: '*' }));
 app.use(express.json());
 app.use(express.static('public')); // Serves admin panel
 
+// Serve admin panel at root
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/public/index.html');
+});
+
 // ── Middleware: verify admin JWT ──────────────────────────
 function requireAdmin(req, res, next) {
   const auth = req.headers.authorization;
