@@ -5,217 +5,280 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>AI Web Agent — Admin Panel</title>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0f0e;color:#e8e8e2;min-height:100vh}
-  .login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh}
-  .login-card{background:#1e1e1c;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:36px;width:360px}
-  .logo{display:flex;align-items:center;gap:10px;margin-bottom:28px;justify-content:center}
-  .logo-icon{width:36px;height:36px;background:rgba(29,158,117,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center}
-  .logo-text{font-size:18px;font-weight:700;letter-spacing:-0.3px}
-  .logo-sub{font-size:12px;color:#9a9a92;text-align:center;margin-bottom:24px}
-  label{font-size:12px;color:#9a9a92;font-weight:500;display:block;margin-bottom:5px;margin-top:14px}
-  input,textarea,select{width:100%;background:#262624;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px 12px;font-size:13px;color:#e8e8e2;font-family:inherit;outline:none;transition:border-color 0.2s}
-  input:focus,textarea:focus{border-color:#1D9E75}
-  textarea{resize:vertical;min-height:100px;line-height:1.5}
-  .btn{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:opacity 0.2s}
-  .btn-primary{background:#1D9E75;color:white;width:100%;justify-content:center;margin-top:18px}
-  .btn-primary:hover{opacity:0.88}
-  .btn-secondary{background:#262624;color:#9a9a92;border:1px solid rgba(255,255,255,0.1)}
-  .btn-secondary:hover{color:#e8e8e2}
-  .btn-danger{background:rgba(226,75,74,0.15);color:#E24B4A;border:1px solid rgba(226,75,74,0.3)}
-  .btn-sm{padding:6px 12px;font-size:12px}
-  .error{color:#E24B4A;font-size:12px;margin-top:8px;text-align:center}
-
-  /* Dashboard */
-  .dashboard{display:none;min-height:100vh}
-  .sidebar{position:fixed;left:0;top:0;width:220px;height:100vh;background:#1e1e1c;border-right:1px solid rgba(255,255,255,0.06);padding:20px 0;display:flex;flex-direction:column}
-  .sidebar-logo{display:flex;align-items:center;gap:8px;padding:0 20px 20px;border-bottom:1px solid rgba(255,255,255,0.06)}
-  .sidebar-logo-icon{width:28px;height:28px;background:rgba(29,158,117,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center}
-  .sidebar-logo-text{font-size:14px;font-weight:700}
-  nav{padding:14px 0;flex:1}
-  .nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;font-size:13px;color:#9a9a92;cursor:pointer;transition:all 0.15s;border-left:3px solid transparent}
-  .nav-item:hover{color:#e8e8e2;background:rgba(255,255,255,0.04)}
-  .nav-item.active{color:#1D9E75;border-left-color:#1D9E75;background:rgba(29,158,117,0.08)}
-  .nav-item svg{flex-shrink:0}
-  .sidebar-bottom{padding:14px 20px;border-top:1px solid rgba(255,255,255,0.06)}
-  .status-badge{display:flex;align-items:center;gap:6px;font-size:12px;color:#9a9a92}
-  .status-dot{width:7px;height:7px;border-radius:50%;background:#1D9E75;box-shadow:0 0 0 3px rgba(29,158,117,0.2)}
-  .status-dot.offline{background:#E24B4A;box-shadow:0 0 0 3px rgba(226,75,74,0.2)}
-
-  .main{margin-left:220px;padding:28px 32px;min-height:100vh}
-  .page{display:none}
-  .page.active{display:block}
-  .page-title{font-size:22px;font-weight:700;margin-bottom:6px;letter-spacing:-0.3px}
-  .page-sub{font-size:13px;color:#9a9a92;margin-bottom:24px}
-
-  /* Cards */
-  .card{background:#1e1e1c;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:20px 24px;margin-bottom:16px}
-  .card-title{font-size:14px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}
-  .card-row{display:flex;gap:12px;margin-bottom:0}
-  .card-row .card{flex:1;margin-bottom:0}
-
-  /* Stats */
-  .stat-value{font-size:32px;font-weight:700;color:#1D9E75;letter-spacing:-1px}
-  .stat-label{font-size:12px;color:#9a9a92;margin-top:3px}
-  .stat-sub{font-size:11px;color:#5a5a56;margin-top:2px}
-
-  /* Toggle */
-  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0}
-  .toggle-label{font-size:13px}
-  .toggle-switch{position:relative;display:inline-block;width:36px;height:20px;cursor:pointer}
-  .toggle-switch input{opacity:0;width:0;height:0}
-  .toggle-track{position:absolute;inset:0;background:#2e2e2b;border-radius:10px;transition:background 0.2s}
-  .toggle-track::after{content:'';position:absolute;width:14px;height:14px;background:white;border-radius:50%;top:3px;left:3px;transition:transform 0.2s}
-  .toggle-switch input:checked+.toggle-track{background:#1D9E75}
-  .toggle-switch input:checked+.toggle-track::after{transform:translateX(16px)}
-
-  .btn-row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
-  .hint{font-size:11.5px;color:#5a5a56;margin-top:6px;line-height:1.5}
-  .success-msg{color:#1D9E75;font-size:12px;margin-top:8px}
-  .chip{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600}
-  .chip-green{background:rgba(29,158,117,0.15);color:#1D9E75}
-  .chip-red{background:rgba(226,75,74,0.15);color:#E24B4A}
-  .divider{height:1px;background:rgba(255,255,255,0.06);margin:16px 0}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0f0e;color:#e8e8e2;min-height:100vh}
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.login-card{background:#1e1e1c;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:36px;width:360px}
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:8px;justify-content:center}
+.logo-icon{width:36px;height:36px;background:rgba(29,158,117,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center}
+.logo-text{font-size:18px;font-weight:700}
+.logo-sub{font-size:12px;color:#9a9a92;text-align:center;margin-bottom:24px}
+label{font-size:12px;color:#9a9a92;font-weight:500;display:block;margin-bottom:5px;margin-top:14px}
+input,textarea,select{width:100%;background:#262624;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px 12px;font-size:13px;color:#e8e8e2;font-family:inherit;outline:none;transition:border-color 0.2s}
+input:focus,textarea:focus,select:focus{border-color:#1D9E75}
+textarea{resize:vertical;min-height:100px;line-height:1.5}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:opacity 0.2s,background 0.2s}
+.btn-primary{background:#1D9E75;color:white}
+.btn-primary:hover{opacity:0.88}
+.btn-secondary{background:#262624;color:#9a9a92;border:1px solid rgba(255,255,255,0.1)}
+.btn-secondary:hover{color:#e8e8e2;background:#2e2e2b}
+.btn-danger{background:rgba(226,75,74,0.15);color:#E24B4A;border:1px solid rgba(226,75,74,0.2)}
+.btn-danger:hover{background:rgba(226,75,74,0.25)}
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn-full{width:100%;justify-content:center;margin-top:16px}
+.error{color:#E24B4A;font-size:12px;margin-top:8px;text-align:center;min-height:18px}
+.dashboard{display:none;min-height:100vh}
+.sidebar{position:fixed;left:0;top:0;width:220px;height:100vh;background:#1a1a18;border-right:1px solid rgba(255,255,255,0.06);display:flex;flex-direction:column}
+.sidebar-logo{display:flex;align-items:center;gap:8px;padding:18px 20px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.sl-icon{width:28px;height:28px;background:rgba(29,158,117,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sl-text{font-size:14px;font-weight:700}
+nav{padding:10px 0;flex:1;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:13px;color:#9a9a92;cursor:pointer;transition:all 0.15s;border-left:3px solid transparent;user-select:none}
+.nav-item:hover{color:#e8e8e2;background:rgba(255,255,255,0.03)}
+.nav-item.active{color:#1D9E75;border-left-color:#1D9E75;background:rgba(29,158,117,0.07)}
+.nav-badge{margin-left:auto;background:rgba(29,158,117,0.15);color:#1D9E75;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px}
+.sidebar-bottom{padding:14px 18px;border-top:1px solid rgba(255,255,255,0.06)}
+.status-row{display:flex;align-items:center;gap:6px;font-size:12px;color:#9a9a92;margin-bottom:10px}
+.sdot{width:7px;height:7px;border-radius:50%;background:#1D9E75;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.main{margin-left:220px;padding:28px 32px;min-height:100vh}
+.page{display:none}.page.active{display:block}
+.page-title{font-size:22px;font-weight:700;margin-bottom:4px;letter-spacing:-0.3px}
+.page-sub{font-size:13px;color:#9a9a92;margin-bottom:22px}
+.card{background:#1a1a18;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:20px 22px;margin-bottom:14px}
+.card-title{font-size:13px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:7px;color:#e8e8e2}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stat-val{font-size:30px;font-weight:700;color:#1D9E75;letter-spacing:-1px}
+.stat-lbl{font-size:12px;color:#9a9a92;margin-top:2px}
+.stat-sub{font-size:11px;color:#5a5a56;margin-top:1px}
+.btn-row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center}
+.hint{font-size:11.5px;color:#5a5a56;margin-top:5px;line-height:1.5}
+.msg{font-size:12px;margin-top:8px;min-height:16px}
+.msg.ok{color:#1D9E75}.msg.err{color:#E24B4A}
+.divider{height:1px;background:rgba(255,255,255,0.05);margin:14px 0}
+.chip{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.chip-green{background:rgba(29,158,117,0.12);color:#1D9E75}
+.chip-red{background:rgba(226,75,74,0.12);color:#E24B4A}
+.chip-gray{background:rgba(255,255,255,0.06);color:#9a9a92}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-top:1px solid rgba(255,255,255,0.05)}
+.toggle-row:last-of-type{border-bottom:1px solid rgba(255,255,255,0.05)}
+.toggle-lbl{font-size:13px;color:#e8e8e2}
+.toggle-sw{position:relative;display:inline-block;width:36px;height:20px;cursor:pointer}
+.toggle-sw input{opacity:0;width:0;height:0;position:absolute}
+.toggle-track{position:absolute;inset:0;background:#2e2e2b;border-radius:10px;transition:background 0.2s}
+.toggle-track::after{content:'';position:absolute;width:14px;height:14px;background:white;border-radius:50%;top:3px;left:3px;transition:transform 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.3)}
+.toggle-sw input:checked+.toggle-track{background:#1D9E75}
+.toggle-sw input:checked+.toggle-track::after{transform:translateX(16px)}
+/* Users table */
+.users-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.users-table th{text-align:left;padding:8px 12px;color:#5a5a56;font-weight:500;border-bottom:1px solid rgba(255,255,255,0.05);font-size:11px;text-transform:uppercase;letter-spacing:0.05em}
+.users-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle}
+.users-table tr:hover td{background:rgba(255,255,255,0.02)}
+.user-avatar{width:28px;height:28px;border-radius:50%;background:rgba(29,158,117,0.15);border:1px solid rgba(29,158,117,0.3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#1D9E75;flex-shrink:0}
+.user-name{font-weight:500;color:#e8e8e2;margin-bottom:1px}
+.user-email{font-size:11px;color:#9a9a92}
+.user-info{display:flex;align-items:center;gap:10px}
+.time-ago{font-size:11px;color:#5a5a56}
+.empty-row td{text-align:center;padding:32px;color:#5a5a56;font-family:monospace;font-size:12px}
+.search-wrap{position:relative;margin-bottom:14px}
+.search-wrap input{padding-left:32px}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#5a5a56}
+/* Provider cards */
+.provider-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
+.provider-card{border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:12px 14px;cursor:pointer;transition:all 0.2s}
+.provider-card:hover{border-color:rgba(29,158,117,0.4)}
+.provider-card.selected{border-color:#1D9E75;background:rgba(29,158,117,0.07)}
+.provider-name{font-size:13px;font-weight:600;margin-bottom:2px}
+.provider-sub{font-size:11px;color:#9a9a92}
+.provider-dot{width:8px;height:8px;border-radius:50%;margin-top:8px}
+.dot-green{background:#1D9E75}.dot-yellow{background:#EF9F27}.dot-blue{background:#4A9EE2}
 </style>
 </head>
 <body>
 
-<!-- LOGIN PAGE -->
+<!-- LOGIN -->
 <div class="login-wrap" id="loginPage">
   <div class="login-card">
     <div class="logo">
       <div class="logo-icon">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-          <circle cx="9" cy="9" r="8" stroke="#1D9E75" stroke-width="1.5"/>
-          <path d="M6 9h6M9 6v6" stroke="#1D9E75" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="8" stroke="#1D9E75" stroke-width="1.5"/><path d="M6 9h6M9 6v6" stroke="#1D9E75" stroke-width="1.5" stroke-linecap="round"/></svg>
       </div>
       <span class="logo-text">AI Web Agent</span>
     </div>
-    <div class="logo-sub">Admin Panel — Sign in to manage your agent</div>
+    <div class="logo-sub">Admin Panel — Sign in to manage</div>
     <label>Username</label>
-    <input type="text" id="loginUser" placeholder="admin" autocomplete="username"/>
+    <input id="loginUser" placeholder="admin" autocomplete="username"/>
     <label>Password</label>
-    <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password"/>
-    <div class="error" id="loginError"></div>
-    <button class="btn btn-primary" onclick="doLogin()">Sign in</button>
+    <input id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password"/>
+    <div class="error" id="loginErr"></div>
+    <button class="btn btn-primary btn-full" onclick="doLogin()">Sign in</button>
   </div>
 </div>
 
 <!-- DASHBOARD -->
 <div class="dashboard" id="dashboard">
-
-  <!-- Sidebar -->
   <div class="sidebar">
     <div class="sidebar-logo">
-      <div class="sidebar-logo-icon">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <circle cx="7" cy="7" r="6" stroke="#1D9E75" stroke-width="1.5"/>
-          <path d="M4 7h6M7 4v6" stroke="#1D9E75" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-      </div>
-      <span class="sidebar-logo-text">AI Web Agent</span>
+      <div class="sl-icon"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="#1D9E75" stroke-width="1.5"/><path d="M4 7h6M7 4v6" stroke="#1D9E75" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <span class="sl-text">AI Web Agent</span>
     </div>
     <nav>
-      <div class="nav-item active" onclick="showPage('overview')">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="1" width="5.5" height="5.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="8.5" y="1" width="5.5" height="5.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="8.5" width="5.5" height="5.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg>
+      <div class="nav-item active" data-page="overview">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="5" height="5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="8" y="1" width="5" height="5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="8" width="5" height="5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="8" y="8" width="5" height="5" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg>
         Overview
       </div>
-      <div class="nav-item" onclick="showPage('email')">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="3" width="13" height="9" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M1 5l6.5 4L14 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-        Email Settings
+      <div class="nav-item" data-page="users">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5" cy="4.5" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 12c0-2.2 1.8-4 4-4s4 1.8 4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="11" cy="4.5" r="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M12.5 12c0-1.4-.9-2.6-2-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Users
+        <span class="nav-badge" id="usersBadge">0</span>
       </div>
-      <div class="nav-item" onclick="showPage('template')">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="1" width="13" height="13" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M4 5h7M4 7.5h7M4 10h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-        Email Template
+      <div class="nav-item" data-page="aikeys">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5.5" cy="8.5" r="3.5" stroke="currentColor" stroke-width="1.3"/><path d="M8.5 5.5l4-4M10.5 1.5l2 2M12.5 3.5l-1 1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        AI Keys
       </div>
-      <div class="nav-item" onclick="showPage('agent')">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M5 7.5h5M7.5 5v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-        Agent Control
+      <div class="nav-item" data-page="email">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="3" width="12" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 5l6 3.5L13 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Email
+      </div>
+      <div class="nav-item" data-page="template">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M4 5h6M4 7.5h6M4 10h3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Template
+      </div>
+      <div class="nav-item" data-page="control">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M7 4v3l2 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Control
       </div>
     </nav>
     <div class="sidebar-bottom">
-      <div class="status-badge">
-        <div class="status-dot" id="serverStatusDot"></div>
-        <span id="serverStatusText">Connected</span>
-      </div>
-      <div style="margin-top:10px">
-        <button class="btn btn-secondary btn-sm" onclick="doLogout()" style="width:100%">Sign out</button>
-      </div>
+      <div class="status-row"><div class="sdot"></div><span id="srvStatus">Connected</span></div>
+      <button class="btn btn-secondary btn-sm" style="width:100%" onclick="doLogout()">Sign out</button>
     </div>
   </div>
 
-  <!-- Main Content -->
   <div class="main">
 
-    <!-- OVERVIEW PAGE -->
+    <!-- OVERVIEW -->
     <div class="page active" id="page-overview">
       <div class="page-title">Overview</div>
-      <div class="page-sub">Monitor your AI Web Agent email service</div>
+      <div class="page-sub">Monitor your AI Web Agent</div>
+      <div class="row3">
+        <div class="card"><div class="stat-val" id="ovUsers">0</div><div class="stat-lbl">Total users</div><div class="stat-sub">registered profiles</div></div>
+        <div class="card"><div class="stat-val" id="ovEmails">0</div><div class="stat-lbl">Emails today</div><div class="stat-sub" id="ovEmailSub">of 100 max</div></div>
+        <div class="card"><div class="stat-val" id="ovStatus">ON</div><div class="stat-lbl">Agent status</div><div class="stat-sub">for all users</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Quick Actions</div>
+        <div class="btn-row">
+          <button class="btn btn-secondary btn-sm" onclick="sendTestEmail()">📧 Send test email</button>
+          <button class="btn btn-secondary btn-sm" onclick="loadAll()">🔄 Refresh</button>
+        </div>
+        <div class="msg ok" id="ovMsg"></div>
+      </div>
+    </div>
 
-      <div class="card-row">
-        <div class="card">
-          <div class="stat-value" id="statEmailsToday">—</div>
-          <div class="stat-label">Emails sent today</div>
-          <div class="stat-sub" id="statLimit">of — max</div>
+    <!-- USERS -->
+    <div class="page" id="page-users">
+      <div class="page-title">Users</div>
+      <div class="page-sub">All profiles registered from the extension</div>
+      <div class="card">
+        <div class="search-wrap">
+          <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4" stroke="#5a5a56" stroke-width="1.3"/><path d="M9 9l3 3" stroke="#5a5a56" stroke-width="1.3" stroke-linecap="round"/></svg>
+          <input id="userSearch" placeholder="Search by name or email..." oninput="filterUsers()"/>
         </div>
-        <div class="card">
-          <div class="stat-value" id="statStatus">—</div>
-          <div class="stat-label">Agent status</div>
-          <div class="stat-sub" id="statResetDate">Resets daily</div>
-        </div>
-        <div class="card">
-          <div class="stat-value" id="statGmail">—</div>
-          <div class="stat-label">Gmail configured</div>
-          <div class="stat-sub">Email sender account</div>
+        <table class="users-table">
+          <thead><tr>
+            <th>User</th><th>Phone</th><th>City</th><th>Forms filled</th><th>Last seen</th><th></th>
+          </tr></thead>
+          <tbody id="usersTableBody">
+            <tr class="empty-row"><td colspan="6">No users yet. Users register when they fill their profile in the extension.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- AI KEYS -->
+    <div class="page" id="page-aikeys">
+      <div class="page-title">AI Keys</div>
+      <div class="page-sub">Set API keys once — all users use them automatically. Keys are never shown to users.</div>
+
+      <div class="card">
+        <div class="card-title">Default AI Provider</div>
+        <div class="provider-grid">
+          <div class="provider-card selected" id="pcard-groq" onclick="selectProvider('groq')">
+            <div class="provider-name">Groq</div>
+            <div class="provider-sub">Free + Fast</div>
+            <div class="provider-dot dot-green"></div>
+          </div>
+          <div class="provider-card" id="pcard-gemini" onclick="selectProvider('gemini')">
+            <div class="provider-name">Gemini</div>
+            <div class="provider-sub">Google AI</div>
+            <div class="provider-dot dot-blue"></div>
+          </div>
+          <div class="provider-card" id="pcard-anthropic" onclick="selectProvider('anthropic')">
+            <div class="provider-name">Claude</div>
+            <div class="provider-sub">Anthropic</div>
+            <div class="provider-dot dot-yellow"></div>
+          </div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title">
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="#1D9E75" stroke-width="1.3"/><path d="M7.5 5v3l2 1.5" stroke="#1D9E75" stroke-width="1.3" stroke-linecap="round"/></svg>
-          Quick Actions
-        </div>
+        <div class="card-title">🔑 Groq API Key <span class="chip chip-green">Free</span></div>
+        <label>API Key</label>
+        <input id="groqKey" type="password" placeholder="gsk_..."/>
+        <label>Model</label>
+        <select id="groqModel">
+          <option value="llama-3.3-70b-versatile">Llama 3.3 70B (recommended)</option>
+          <option value="llama-3.1-8b-instant">Llama 3.1 8B (faster)</option>
+          <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+        </select>
+        <div class="hint">Get free key at <a href="https://console.groq.com" target="_blank" style="color:#1D9E75">console.groq.com</a></div>
         <div class="btn-row">
-          <button class="btn btn-secondary btn-sm" onclick="sendTestEmail()">📧 Send Test Email</button>
-          <button class="btn btn-secondary btn-sm" onclick="loadStats()">🔄 Refresh Stats</button>
+          <button class="btn btn-primary btn-sm" onclick="saveAiKeys()">Save AI Keys</button>
         </div>
-        <div class="success-msg" id="overviewMsg"></div>
+        <div class="msg ok" id="aiMsg"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔑 Google Gemini API Key <span class="chip chip-green">Free</span></div>
+        <label>API Key</label>
+        <input id="geminiKey" type="password" placeholder="AIzaSy..."/>
+        <div class="hint">Get free key at <a href="https://aistudio.google.com" target="_blank" style="color:#1D9E75">aistudio.google.com</a></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔑 Anthropic Claude API Key <span class="chip chip-gray">Paid</span></div>
+        <label>API Key</label>
+        <input id="anthropicKey" type="password" placeholder="sk-ant-..."/>
+        <div class="hint">Get key at <a href="https://console.anthropic.com" target="_blank" style="color:#1D9E75">console.anthropic.com</a></div>
       </div>
     </div>
 
-    <!-- EMAIL SETTINGS PAGE -->
+    <!-- EMAIL -->
     <div class="page" id="page-email">
       <div class="page-title">Email Settings</div>
-      <div class="page-sub">Configure Gmail to send confirmation emails to all users</div>
-
+      <div class="page-sub">Configure Gmail to send confirmation emails to all users automatically</div>
       <div class="card">
-        <div class="card-title">
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="3" width="13" height="9" rx="2" stroke="#1D9E75" stroke-width="1.3"/><path d="M1 5l6.5 4L14 5" stroke="#1D9E75" stroke-width="1.3"/></svg>
-          Gmail Configuration
-        </div>
-        <div class="hint" style="margin-bottom:12px">
-          Use your Gmail address and an <strong>App Password</strong> (not your regular password).<br>
-          Get App Password: Google Account → Security → 2-Step Verification → App Passwords
-        </div>
+        <div class="card-title">Gmail Configuration</div>
+        <div class="hint" style="margin-bottom:12px">Use Gmail + App Password. Get App Password: Google Account → Security → 2-Step Verification → App Passwords</div>
         <label>Gmail Address</label>
-        <input type="email" id="gmailUser" placeholder="your-email@gmail.com"/>
+        <input id="gmailUser" type="email" placeholder="your@gmail.com"/>
         <label>Gmail App Password</label>
-        <input type="password" id="gmailPass" placeholder="xxxx xxxx xxxx xxxx"/>
-        <div class="hint">16-character App Password from Google Account settings. NOT your Gmail login password.</div>
+        <input id="gmailPass" type="password" placeholder="xxxx xxxx xxxx xxxx (no spaces)"/>
+        <div class="hint">16-character app password from Google — NOT your regular Gmail password</div>
         <div class="btn-row">
-          <button class="btn btn-primary" style="width:auto" onclick="saveEmailSettings()">Save Email Settings</button>
+          <button class="btn btn-primary btn-sm" onclick="saveEmailSettings()">Save Email Settings</button>
           <button class="btn btn-secondary btn-sm" onclick="sendTestEmail()">Send Test Email</button>
         </div>
-        <div class="success-msg" id="emailMsg"></div>
+        <div class="msg ok" id="emailMsg"></div>
       </div>
     </div>
 
-    <!-- EMAIL TEMPLATE PAGE -->
+    <!-- TEMPLATE -->
     <div class="page" id="page-template">
       <div class="page-title">Email Template</div>
-      <div class="page-sub">Customize the confirmation email sent to users after form submission</div>
-
+      <div class="page-sub">Customize the confirmation email sent to users after every form submission</div>
       <div class="card">
         <div class="card-title">Available Variables</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px">
@@ -227,54 +290,46 @@
           <span class="chip chip-green">{{submitted_at}}</span>
         </div>
       </div>
-
       <div class="card">
-        <div class="card-title">Email Subject</div>
-        <input type="text" id="emailSubject" placeholder="✅ Form Submitted — {{form_title}}"/>
-
-        <div style="margin-top:16px" class="card-title">Email Body</div>
+        <label>Email Subject</label>
+        <input id="emailSubject"/>
+        <label style="margin-top:14px">Email Body</label>
         <textarea id="emailBody" rows="10"></textarea>
         <div class="btn-row">
-          <button class="btn btn-primary" style="width:auto" onclick="saveTemplate()">Save Template</button>
-          <button class="btn btn-secondary btn-sm" onclick="resetTemplate()">Reset to Default</button>
+          <button class="btn btn-primary btn-sm" onclick="saveTemplate()">Save Template</button>
+          <button class="btn btn-secondary btn-sm" onclick="resetTemplate()">Reset Default</button>
         </div>
-        <div class="success-msg" id="templateMsg"></div>
+        <div class="msg ok" id="tplMsg"></div>
       </div>
     </div>
 
-    <!-- AGENT CONTROL PAGE -->
-    <div class="page" id="page-agent">
+    <!-- CONTROL -->
+    <div class="page" id="page-control">
       <div class="page-title">Agent Control</div>
-      <div class="page-sub">Control the agent behavior for all users</div>
-
+      <div class="page-sub">Control agent behavior for all users globally</div>
       <div class="card">
-        <div class="card-title">Agent Settings</div>
+        <div class="card-title">Global Settings</div>
         <div class="toggle-row">
-          <span class="toggle-label">Agent enabled (all users)</span>
-          <label class="toggle-switch">
-            <input type="checkbox" id="agentEnabled" checked onchange="saveAgentSettings()"/>
-            <span class="toggle-track"></span>
-          </label>
+          <span class="toggle-lbl">Agent enabled for all users</span>
+          <label class="toggle-sw"><input type="checkbox" id="agentEnabled" checked onchange="saveControl()"/><span class="toggle-track"></span></label>
         </div>
-        <div class="divider"></div>
-        <label>Max emails per day (across all users)</label>
-        <input type="number" id="maxEmails" value="100" min="1" max="500" style="width:120px"/>
-        <div class="hint">Gmail free limit is 500/day. Recommended: 100</div>
+        <label style="margin-top:14px">Max emails per day (all users combined)</label>
+        <input id="maxEmails" type="number" value="100" min="1" max="500" style="width:120px"/>
+        <div class="hint">Gmail free limit: 500/day. Recommended: 100</div>
         <div class="btn-row">
-          <button class="btn btn-primary" style="width:auto" onclick="saveAgentSettings()">Save Settings</button>
+          <button class="btn btn-primary btn-sm" onclick="saveControl()">Save</button>
         </div>
-        <div class="success-msg" id="agentMsg"></div>
+        <div class="msg ok" id="ctrlMsg"></div>
       </div>
-
       <div class="card">
-        <div class="card-title">Extension Setup Instructions for Users</div>
-        <div class="hint" style="font-size:12.5px;line-height:1.8">
-          Tell your users:<br>
-          1. Install the AI Web Agent extension<br>
-          2. Open extension → click 👤 Profile → fill their name, email, phone, address<br>
-          3. Open extension → click ⚙️ Settings → add their Groq API key (free)<br>
-          4. Done! Email confirmation happens automatically after every form submission.<br><br>
-          <strong>Users do NOT need to set up any email keys.</strong> You handle that here.
+        <div class="card-title">User Instructions</div>
+        <div class="hint" style="font-size:12.5px;line-height:1.9;color:#9a9a92">
+          Share this with your users:<br>
+          1. Install AI Web Agent Chrome extension<br>
+          2. Click 👤 Profile → fill Name, Email, Phone, Address → Save<br>
+          3. Click ⚙️ Settings → paste the Backend URL: <strong style="color:#1D9E75" id="backendUrlDisplay"></strong><br>
+          4. Done! AI keys and email are handled automatically.<br><br>
+          <strong style="color:#e8e8e2">Users do NOT need to set any API keys.</strong>
         </div>
       </div>
     </div>
@@ -284,150 +339,196 @@
 
 <script>
 let token = localStorage.getItem('adminToken') || '';
+let allUsers = [];
 const API = window.location.origin;
 
-// ── Auto login if token exists ────────────────────────────
+document.getElementById('backendUrlDisplay').textContent = API;
+
 window.onload = () => {
   if (token) {
-    fetch(API + '/api/admin/config', { headers: { Authorization: 'Bearer ' + token } })
-      .then(r => r.ok ? showDashboard() : showLogin())
-      .catch(() => showLogin());
+    authFetch('/api/admin/config').then(r => r.ok ? showDash() : showLogin()).catch(() => showLogin());
   }
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.onclick = () => {
+      document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+      n.classList.add('active');
+      document.getElementById('page-' + n.dataset.page).classList.add('active');
+      if (n.dataset.page === 'users') loadUsers();
+    };
+  });
 };
 
-function showLogin() {
-  document.getElementById('loginPage').style.display = 'flex';
-  document.getElementById('dashboard').style.display = 'none';
-}
-function showDashboard() {
-  document.getElementById('loginPage').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'block';
-  loadConfig();
-  loadStats();
-}
+function showLogin() { document.getElementById('loginPage').style.display='flex'; document.getElementById('dashboard').style.display='none'; }
+function showDash()  { document.getElementById('loginPage').style.display='none'; document.getElementById('dashboard').style.display='block'; loadAll(); }
 
 async function doLogin() {
-  const username = document.getElementById('loginUser').value.trim();
-  const password = document.getElementById('loginPass').value;
-  document.getElementById('loginError').textContent = '';
+  document.getElementById('loginErr').textContent = '';
   try {
-    const res = await fetch(API + '/api/admin/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Login failed');
-    token = data.token;
-    localStorage.setItem('adminToken', token);
-    showDashboard();
-  } catch (e) {
-    document.getElementById('loginError').textContent = e.message;
-  }
+    const r = await fetch(API+'/api/admin/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username: document.getElementById('loginUser').value.trim(), password: document.getElementById('loginPass').value }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error);
+    token = d.token; localStorage.setItem('adminToken', token); showDash();
+  } catch(e) { document.getElementById('loginErr').textContent = e.message; }
+}
+function doLogout() { token=''; localStorage.removeItem('adminToken'); showLogin(); }
+
+function authFetch(url, opts={}) {
+  opts.headers = {...(opts.headers||{}), Authorization:'Bearer '+token, 'Content-Type':'application/json'};
+  return fetch(API+url, opts);
 }
 
-function doLogout() {
-  token = '';
-  localStorage.removeItem('adminToken');
-  showLogin();
-}
-
-function showPage(name) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + name).classList.add('active');
-  event.currentTarget.classList.add('active');
-}
-
-async function authFetch(url, opts = {}) {
-  opts.headers = { ...opts.headers, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
-  return fetch(API + url, opts);
-}
-
-async function loadConfig() {
+async function loadAll() {
   try {
-    const res = await authFetch('/api/admin/config');
-    const data = await res.json();
-    document.getElementById('gmailUser').value    = data.gmailUser || '';
-    document.getElementById('gmailPass').value    = data.gmailAppPassword || '';
-    document.getElementById('emailSubject').value = data.emailSubject || '';
-    document.getElementById('emailBody').value    = data.emailBody || '';
-    document.getElementById('agentEnabled').checked = data.agentEnabled !== false;
-    document.getElementById('maxEmails').value    = data.maxEmailsPerDay || 100;
-  } catch (e) { console.error(e); }
+    const [cfgR, statsR] = await Promise.all([authFetch('/api/admin/config'), authFetch('/api/admin/stats')]);
+    const cfg = await cfgR.json();
+    const stats = await statsR.json();
+
+    // Overview
+    document.getElementById('ovUsers').textContent = stats.totalUsers || 0;
+    document.getElementById('ovEmails').textContent = stats.emailsSentToday;
+    document.getElementById('ovEmailSub').textContent = 'of ' + stats.maxEmailsPerDay + ' max';
+    document.getElementById('ovStatus').textContent = stats.agentEnabled ? 'ON' : 'OFF';
+    document.getElementById('ovStatus').style.color = stats.agentEnabled ? '#1D9E75' : '#E24B4A';
+    document.getElementById('usersBadge').textContent = stats.totalUsers || 0;
+
+    // AI Keys
+    document.getElementById('groqKey').value    = cfg.groqApiKey    || '';
+    document.getElementById('geminiKey').value  = cfg.geminiApiKey  || '';
+    document.getElementById('anthropicKey').value = cfg.anthropicApiKey || '';
+    if (cfg.groqModel) document.getElementById('groqModel').value = cfg.groqModel;
+    selectProvider(cfg.defaultProvider || 'groq');
+
+    // Email
+    document.getElementById('gmailUser').value  = cfg.gmailUser || '';
+    document.getElementById('gmailPass').value  = cfg.gmailAppPassword || '';
+
+    // Template
+    document.getElementById('emailSubject').value = cfg.emailSubject || '';
+    document.getElementById('emailBody').value    = cfg.emailBody    || '';
+
+    // Control
+    document.getElementById('agentEnabled').checked = cfg.agentEnabled !== false;
+    document.getElementById('maxEmails').value = cfg.maxEmailsPerDay || 100;
+  } catch(e) { console.error(e); }
 }
 
-async function loadStats() {
+async function loadUsers() {
   try {
-    const res = await authFetch('/api/admin/stats');
-    const data = await res.json();
-    document.getElementById('statEmailsToday').textContent = data.emailsSentToday;
-    document.getElementById('statLimit').textContent = 'of ' + data.maxEmailsPerDay + ' max';
-    document.getElementById('statStatus').textContent = data.agentEnabled ? 'ON' : 'OFF';
-    document.getElementById('statStatus').style.color = data.agentEnabled ? '#1D9E75' : '#E24B4A';
-    document.getElementById('statResetDate').textContent = 'Last reset: ' + data.lastResetDate;
-
-    const cfg = await (await authFetch('/api/admin/config')).json();
-    document.getElementById('statGmail').textContent = cfg.gmailUser ? '✓' : '✗';
-    document.getElementById('statGmail').style.color = cfg.gmailUser ? '#1D9E75' : '#E24B4A';
+    const r = await authFetch('/api/admin/users');
+    allUsers = await r.json();
+    renderUsers(allUsers);
   } catch(e) {}
 }
 
+function renderUsers(users) {
+  const tbody = document.getElementById('usersTableBody');
+  if (!users.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No users yet. Users appear here when they fill their profile in the extension.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map(u => `
+    <tr>
+      <td><div class="user-info">
+        <div class="user-avatar">${((u.first?.[0]||'')+(u.last?.[0]||'')||u.name?.[0]||'?').toUpperCase()}</div>
+        <div><div class="user-name">${esc(u.name||'Unknown')}</div><div class="user-email">${esc(u.email)}</div></div>
+      </div></td>
+      <td style="color:#9a9a92">${esc(u.phone||'—')}</td>
+      <td style="color:#9a9a92">${esc(u.city||'—')}</td>
+      <td><span class="chip chip-green">${u.formsFilled||0} forms</span></td>
+      <td class="time-ago">${timeAgo(u.lastSeen)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteUser('${esc(u.email)}')">Remove</button></td>
+    </tr>`).join('');
+}
+
+function filterUsers() {
+  const q = document.getElementById('userSearch').value.toLowerCase();
+  renderUsers(allUsers.filter(u => (u.name||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q)));
+}
+
+async function deleteUser(email) {
+  if (!confirm('Remove user ' + email + '?')) return;
+  await authFetch('/api/admin/users/' + encodeURIComponent(email), { method:'DELETE' });
+  loadUsers();
+}
+
+function selectProvider(p) {
+  ['groq','gemini','anthropic'].forEach(x => document.getElementById('pcard-'+x).classList.remove('selected'));
+  document.getElementById('pcard-'+p)?.classList.add('selected');
+}
+
+async function saveAiKeys() {
+  const selected = document.querySelector('.provider-card.selected')?.id?.replace('pcard-','') || 'groq';
+  const body = {
+    groqApiKey:      document.getElementById('groqKey').value.trim(),
+    groqModel:       document.getElementById('groqModel').value,
+    geminiApiKey:    document.getElementById('geminiKey').value.trim(),
+    anthropicApiKey: document.getElementById('anthropicKey').value.trim(),
+    defaultProvider: selected,
+  };
+  const r = await authFetch('/api/admin/config', { method:'POST', body: JSON.stringify(body) });
+  const d = await r.json();
+  showMsg('aiMsg', d.success ? '✓ AI keys saved! All users will now use these keys.' : '✗ '+d.error, d.success);
+}
+
 async function saveEmailSettings() {
-  const gmailUser = document.getElementById('gmailUser').value.trim();
-  const gmailAppPassword = document.getElementById('gmailPass').value.trim();
-  const res = await authFetch('/api/admin/config', {
-    method: 'POST', body: JSON.stringify({ gmailUser, gmailAppPassword })
-  });
-  const data = await res.json();
-  showMsg('emailMsg', data.success ? '✓ Email settings saved!' : '✗ ' + data.error);
-  loadStats();
+  const body = { gmailUser: document.getElementById('gmailUser').value.trim(), gmailAppPassword: document.getElementById('gmailPass').value.trim() };
+  const r = await authFetch('/api/admin/config', { method:'POST', body: JSON.stringify(body) });
+  const d = await r.json();
+  showMsg('emailMsg', d.success ? '✓ Email settings saved!' : '✗ '+d.error, d.success);
+  loadAll();
 }
 
 async function saveTemplate() {
-  const emailSubject = document.getElementById('emailSubject').value;
-  const emailBody    = document.getElementById('emailBody').value;
-  const res = await authFetch('/api/admin/config', {
-    method: 'POST', body: JSON.stringify({ emailSubject, emailBody })
-  });
-  const data = await res.json();
-  showMsg('templateMsg', data.success ? '✓ Template saved!' : '✗ ' + data.error);
+  const body = { emailSubject: document.getElementById('emailSubject').value, emailBody: document.getElementById('emailBody').value };
+  const r = await authFetch('/api/admin/config', { method:'POST', body: JSON.stringify(body) });
+  const d = await r.json();
+  showMsg('tplMsg', d.success ? '✓ Template saved!' : '✗ '+d.error, d.success);
 }
 
 function resetTemplate() {
   document.getElementById('emailSubject').value = '✅ Form Submitted — {{form_title}}';
-  document.getElementById('emailBody').value = `Hi {{to_name}},\n\nYour form "{{form_title}}" was successfully filled and submitted by AI Web Agent.\n\n📋 What was filled:\n{{fields_text}}\n\n🔗 Form URL: {{form_url}}\n🕐 Submitted at: {{submitted_at}}\n\n— AI Web Agent`;
-  showMsg('templateMsg', 'Reset to default — click Save to apply.');
+  document.getElementById('emailBody').value = 'Hi {{to_name}},\n\nYour form "{{form_title}}" was successfully filled and submitted by AI Web Agent.\n\n📋 What was filled:\n{{fields_text}}\n\n🔗 Form URL: {{form_url}}\n🕐 Submitted at: {{submitted_at}}\n\n— AI Web Agent';
+  showMsg('tplMsg', 'Reset to default — click Save to apply.', true);
 }
 
-async function saveAgentSettings() {
-  const agentEnabled   = document.getElementById('agentEnabled').checked;
-  const maxEmailsPerDay = parseInt(document.getElementById('maxEmails').value);
-  const res = await authFetch('/api/admin/config', {
-    method: 'POST', body: JSON.stringify({ agentEnabled, maxEmailsPerDay })
-  });
-  const data = await res.json();
-  showMsg('agentMsg', data.success ? '✓ Saved!' : '✗ Error');
-  loadStats();
+async function saveControl() {
+  const body = { agentEnabled: document.getElementById('agentEnabled').checked, maxEmailsPerDay: parseInt(document.getElementById('maxEmails').value) };
+  const r = await authFetch('/api/admin/config', { method:'POST', body: JSON.stringify(body) });
+  const d = await r.json();
+  showMsg('ctrlMsg', d.success ? '✓ Saved!' : '✗ '+d.error, d.success);
+  loadAll();
 }
 
 async function sendTestEmail() {
-  showMsg('overviewMsg', '⏳ Sending test email...');
-  const res = await authFetch('/api/admin/test-email', { method: 'POST', body: '{}' });
-  const data = await res.json();
-  showMsg('overviewMsg', data.sent ? '✓ Test email sent to your Gmail!' : '✗ ' + data.error);
-  showMsg('emailMsg', data.sent ? '✓ Test email sent!' : '✗ ' + data.error);
+  showMsg('ovMsg', '⏳ Sending...', true);
+  const r = await authFetch('/api/admin/test-email', { method:'POST', body:'{}' });
+  const d = await r.json();
+  showMsg('ovMsg', d.sent ? '✓ Test email sent to your Gmail!' : '✗ '+d.error, d.sent);
+  showMsg('emailMsg', d.sent ? '✓ Test email sent!' : '✗ '+d.error, d.sent);
 }
 
-function showMsg(id, msg) {
+function showMsg(id, msg, ok) {
   const el = document.getElementById(id);
   if (!el) return;
   el.textContent = msg;
+  el.className = 'msg ' + (ok ? 'ok' : 'err');
   setTimeout(() => el.textContent = '', 4000);
 }
 
-// Handle enter key on login
+function timeAgo(iso) {
+  if (!iso) return '—';
+  const s = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
 document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && document.getElementById('loginPage').style.display !== 'none') doLogin();
+  if (e.key==='Enter' && document.getElementById('loginPage').style.display!=='none') doLogin();
 });
 </script>
 </body>
