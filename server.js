@@ -25,11 +25,11 @@ let config = {
 
 app.use(cors({ origin: '*' }));
 app.use(express.json());
-app.use(express.static('public')); // Serves admin panel
+app.use(express.static(__dirname)); // Serves files from root
 
 // Serve admin panel at root
 app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/index.html');
+  res.sendFile(__dirname + '/index.html');
 });
 
 // ── Middleware: verify admin JWT ──────────────────────────
