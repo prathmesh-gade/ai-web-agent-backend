@@ -392,16 +392,20 @@ async function loadAll() {
     document.getElementById('ovStatus').style.color = stats.agentEnabled ? '#1D9E75' : '#E24B4A';
     document.getElementById('usersBadge').textContent = stats.totalUsers || 0;
 
-    // AI Keys
-    document.getElementById('groqKey').value    = cfg.groqApiKey    || '';
-    document.getElementById('geminiKey').value  = cfg.geminiApiKey  || '';
-    document.getElementById('anthropicKey').value = cfg.anthropicApiKey || '';
+    // AI Keys — never show masked values, show placeholder instead
+    document.getElementById('groqKey').value    = '';
+    document.getElementById('geminiKey').value  = '';
+    document.getElementById('anthropicKey').value = '';
+    document.getElementById('groqKey').placeholder    = cfg.groqApiKey    ? 'Already saved — enter new to change' : 'gsk_...';
+    document.getElementById('geminiKey').placeholder  = cfg.geminiApiKey  ? 'Already saved — enter new to change' : 'AIzaSy...';
+    document.getElementById('anthropicKey').placeholder = cfg.anthropicApiKey ? 'Already saved — enter new to change' : 'sk-ant-...';
     if (cfg.groqModel) document.getElementById('groqModel').value = cfg.groqModel;
     selectProvider(cfg.defaultProvider || 'groq');
 
-    // Email
+    // Email — never load masked password, user must re-enter
     document.getElementById('gmailUser').value  = cfg.gmailUser || '';
-    document.getElementById('gmailPass').value  = cfg.gmailAppPassword || '';
+    document.getElementById('gmailPass').value  = '';  // always blank for security
+    document.getElementById('gmailPass').placeholder = cfg.gmailAppPassword ? 'Already saved — enter new to change' : 'xxxx xxxx xxxx xxxx (no spaces)';
 
     // Template
     document.getElementById('emailSubject').value = cfg.emailSubject || '';
@@ -459,20 +463,30 @@ function selectProvider(p) {
 
 async function saveAiKeys() {
   const selected = document.querySelector('.provider-card.selected')?.id?.replace('pcard-','') || 'groq';
+  const groqKey     = document.getElementById('groqKey').value.trim();
+  const geminiKey   = document.getElementById('geminiKey').value.trim();
+  const anthropicKey= document.getElementById('anthropicKey').value.trim();
   const body = {
-    groqApiKey:      document.getElementById('groqKey').value.trim(),
     groqModel:       document.getElementById('groqModel').value,
-    geminiApiKey:    document.getElementById('geminiKey').value.trim(),
-    anthropicApiKey: document.getElementById('anthropicKey').value.trim(),
     defaultProvider: selected,
   };
+  // Only save keys if user actually typed something new (not masked)
+  if (groqKey     && !groqKey.includes('••••'))      body.groqApiKey      = groqKey;
+  if (geminiKey   && !geminiKey.includes('••••'))    body.geminiApiKey    = geminiKey;
+  if (anthropicKey&& !anthropicKey.includes('••••')) body.anthropicApiKey = anthropicKey;
   const r = await authFetch('/api/admin/config', { method:'POST', body: JSON.stringify(body) });
   const d = await r.json();
   showMsg('aiMsg', d.success ? '✓ AI keys saved! All users will now use these keys.' : '✗ '+d.error, d.success);
 }
 
 async function saveEmailSettings() {
-  const body = { gmailUser: document.getElementById('gmailUser').value.trim(), gmailAppPassword: document.getElementById('gmailPass').value.trim() };
+  const gmailUser = document.getElementById('gmailUser').value.trim();
+  const gmailPass = document.getElementById('gmailPass').value.trim();
+  const body = { gmailUser };
+  // Only update password if user actually typed something new
+  if (gmailPass && !gmailPass.includes('••••')) {
+    body.gmailAppPassword = gmailPass;
+  }
   const r = await authFetch('/api/admin/config', { method:'POST', body: JSON.stringify(body) });
   const d = await r.json();
   showMsg('emailMsg', d.success ? '✓ Email settings saved!' : '✗ '+d.error, d.success);
