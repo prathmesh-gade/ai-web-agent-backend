@@ -246,11 +246,12 @@ app.post('/api/admin/config', requireAdmin, async (req, res) => {
     'agentEnabled','maxEmailsPerDay'];
   for (const key of allowed) {
     if (req.body[key] === undefined) continue;
-    // Skip masked values
-    if (['gmailAppPassword','groqApiKey','geminiApiKey','anthropicApiKey'].includes(key)
-      && String(req.body[key]).includes('••••')) continue;
-    const val = key === 'maxEmailsPerDay' ? parseInt(req.body[key]) : req.body[key];
-    await setConfig(key, val);
+    const val = req.body[key];
+    // Skip empty strings and masked values
+    if (val === '' || val === null) continue;
+    if (String(val).includes('••••')) continue;
+    const finalVal = key === 'maxEmailsPerDay' ? parseInt(val) : val;
+    await setConfig(key, finalVal);
   }
   console.log('[ADMIN] Config updated');
   res.json({ success: true });
@@ -299,10 +300,19 @@ app.delete('/api/admin/users/:email', requireAdmin, async (req, res) => {
   res.json({ ok: true });
 });
 
+// Force reset a specific config value (for fixing stuck values)
+app.post('/api/admin/force-set', requireAdmin, async (req, res) => {
+  const { key, value } = req.body;
+  const allowed = ['gmailUser','gmailAppPassword','groqApiKey','geminiApiKey','anthropicApiKey'];
+  if (!allowed.includes(key)) return res.status(400).json({ error: 'Key not allowed' });
+  await ConfigModel.findOneAndUpdate({ key }, { value }, { upsert: true, new: true });
+  console.log('[ADMIN] Force set:', key);
+  res.json({ success: true });
+});
+
 // ── Start ─────────────────────────────────────────────────
 app.listen(PORT, async () => {
   console.log(`AI Web Agent Backend v3 running on port ${PORT}`);
   // Wait for DB then init defaults
   setTimeout(initDefaults, 2000);
 });
-
