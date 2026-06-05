@@ -516,19 +516,38 @@ async function saveControl() {
 }
 
 async function sendTestEmail() {
-  showMsg('ovMsg', '⏳ Sending...', true);
-  const r = await authFetch('/api/admin/test-email', { method:'POST', body:'{}' });
-  const d = await r.json();
-  showMsg('ovMsg', d.sent ? '✓ Test email sent to your Gmail!' : '✗ '+d.error, d.sent);
-  showMsg('emailMsg', d.sent ? '✓ Test email sent!' : '✗ '+d.error, d.sent);
+  showMsg('ovMsg', '⏳ Sending test email...', true);
+  showMsg('emailMsg', '⏳ Sending test email...', true);
+  try {
+    const r = await authFetch('/api/admin/test-email', { method:'POST', body:'{}' });
+    const d = await r.json();
+    if (d.sent) {
+      showMsg('ovMsg', '✓ Test email sent! Check your Gmail inbox.', true);
+      showMsg('emailMsg', '✓ Test email sent! Check your Gmail inbox.', true);
+      alert('✅ Test email sent to ' + document.getElementById('gmailUser').value + '\nCheck your Gmail inbox!');
+    } else {
+      const errMsg = '✗ Error: ' + (d.error || 'Unknown error');
+      showMsg('ovMsg', errMsg, false);
+      showMsg('emailMsg', errMsg, false);
+      alert('❌ Email failed: ' + (d.error || 'Unknown error') + '\n\nCheck:\n1. Gmail address is correct\n2. App Password is correct (16 chars)\n3. 2-Step Verification is ON in Google Account');
+    }
+  } catch(e) {
+    showMsg('emailMsg', '✗ Network error: ' + e.message, false);
+    alert('❌ Network error: ' + e.message);
+  }
 }
 
 function showMsg(id, msg, ok) {
   const el = document.getElementById(id);
   if (!el) return;
   el.textContent = msg;
-  el.className = 'msg ' + (ok ? 'ok' : 'err');
-  setTimeout(() => el.textContent = '', 4000);
+  el.style.color = ok ? '#1D9E75' : '#E24B4A';
+  el.style.fontSize = '13px';
+  el.style.marginTop = '8px';
+  el.style.display = 'block';
+  if (ok && !msg.includes('⏳')) {
+    setTimeout(() => { el.textContent = ''; }, 6000);
+  }
 }
 
 function timeAgo(iso) {
