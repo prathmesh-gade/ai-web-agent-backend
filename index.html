@@ -224,9 +224,9 @@ nav{padding:10px 0;flex:1;overflow-y:auto}
       </div>
 
       <div class="card">
-        <div class="card-title">🔑 Groq API Key <span class="chip chip-green">Free</span></div>
-        <label>API Key</label>
-        <input id="groqKey" type="password" placeholder="gsk_..."/>
+        <div class="card-title">🔑 Groq API Key <span class="chip chip-green">Free</span> <span id="groqKeyStatus" style="font-size:11px;margin-left:8px">❌ Not set</span></div>
+        <label>API Key (leave blank to keep existing)</label>
+        <input id="groqKey" type="password" placeholder="Enter new key or leave blank"/>
         <label>Model</label>
         <select id="groqModel">
           <option value="llama-3.3-70b-versatile">Llama 3.3 70B (recommended)</option>
@@ -241,16 +241,16 @@ nav{padding:10px 0;flex:1;overflow-y:auto}
       </div>
 
       <div class="card">
-        <div class="card-title">🔑 Google Gemini API Key <span class="chip chip-green">Free</span></div>
-        <label>API Key</label>
-        <input id="geminiKey" type="password" placeholder="AIzaSy..."/>
+        <div class="card-title">🔑 Google Gemini API Key <span class="chip chip-green">Free</span> <span id="geminiKeyStatus" style="font-size:11px;margin-left:8px">❌ Not set</span></div>
+        <label>API Key (leave blank to keep existing)</label>
+        <input id="geminiKey" type="password" placeholder="Enter new key or leave blank"/>
         <div class="hint">Get free key at <a href="https://aistudio.google.com" target="_blank" style="color:#1D9E75">aistudio.google.com</a></div>
       </div>
 
       <div class="card">
-        <div class="card-title">🔑 Anthropic Claude API Key <span class="chip chip-gray">Paid</span></div>
-        <label>API Key</label>
-        <input id="anthropicKey" type="password" placeholder="sk-ant-..."/>
+        <div class="card-title">🔑 Anthropic Claude API Key <span class="chip chip-gray">Paid</span> <span id="anthropicKeyStatus" style="font-size:11px;margin-left:8px">❌ Not set</span></div>
+        <label>API Key (leave blank to keep existing)</label>
+        <input id="anthropicKey" type="password" placeholder="Enter new key or leave blank"/>
         <div class="hint">Get key at <a href="https://console.anthropic.com" target="_blank" style="color:#1D9E75">console.anthropic.com</a></div>
       </div>
     </div>
@@ -264,8 +264,8 @@ nav{padding:10px 0;flex:1;overflow-y:auto}
         <div class="hint" style="margin-bottom:12px">Use Gmail + App Password. Get App Password: Google Account → Security → 2-Step Verification → App Passwords</div>
         <label>Gmail Address</label>
         <input id="gmailUser" type="email" placeholder="your@gmail.com"/>
-        <label>Gmail App Password</label>
-        <input id="gmailPass" type="password" placeholder="xxxx xxxx xxxx xxxx (no spaces)"/>
+        <label>Gmail App Password <span id="gmailPassStatus" style="font-size:11px;margin-left:8px">❌ Not set</span></label>
+        <input id="gmailPass" type="password" placeholder="Enter 16-char app password (no spaces)"/>
         <div class="hint">16-character app password from Google — NOT your regular Gmail password</div>
         <div class="btn-row">
           <button class="btn btn-primary btn-sm" onclick="saveEmailSettings()">Save Email Settings</button>
@@ -393,13 +393,16 @@ async function loadAll() {
     document.getElementById('ovStatus').style.color = stats.agentEnabled ? '#1D9E75' : '#E24B4A';
     document.getElementById('usersBadge').textContent = stats.totalUsers || 0;
 
-    // AI Keys — never show masked values, show placeholder instead
-    document.getElementById('groqKey').value    = '';
-    document.getElementById('geminiKey').value  = '';
-    document.getElementById('anthropicKey').value = '';
-    document.getElementById('groqKey').placeholder    = cfg.groqApiKey    ? 'Already saved — enter new to change' : 'gsk_...';
-    document.getElementById('geminiKey').placeholder  = cfg.geminiApiKey  ? 'Already saved — enter new to change' : 'AIzaSy...';
-    document.getElementById('anthropicKey').placeholder = cfg.anthropicApiKey ? 'Already saved — enter new to change' : 'sk-ant-...';
+    // AI Keys — show status chips, never load actual values
+    document.getElementById('groqKeyStatus').textContent    = cfg.groqApiKey    ? '✅ Saved' : '❌ Not set';
+    document.getElementById('groqKeyStatus').style.color    = cfg.groqApiKey    ? '#1D9E75' : '#E24B4A';
+    document.getElementById('geminiKeyStatus').textContent  = cfg.geminiApiKey  ? '✅ Saved' : '❌ Not set';
+    document.getElementById('geminiKeyStatus').style.color  = cfg.geminiApiKey  ? '#1D9E75' : '#E24B4A';
+    document.getElementById('anthropicKeyStatus').textContent = cfg.anthropicApiKey ? '✅ Saved' : '❌ Not set';
+    document.getElementById('anthropicKeyStatus').style.color = cfg.anthropicApiKey ? '#1D9E75' : '#E24B4A';
+    document.getElementById('gmailPassStatus').textContent  = cfg.gmailAppPassword ? '✅ Saved' : '❌ Not set';
+    document.getElementById('gmailPassStatus').style.color  = cfg.gmailAppPassword ? '#1D9E75' : '#E24B4A';
+    if (cfg.groqModel) document.getElementById('groqModel').value = cfg.groqModel;
     if (cfg.groqModel) document.getElementById('groqModel').value = cfg.groqModel;
     selectProvider(cfg.defaultProvider || 'groq');
 
