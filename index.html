@@ -393,16 +393,22 @@ async function loadAll() {
     document.getElementById('ovStatus').style.color = stats.agentEnabled ? '#1D9E75' : '#E24B4A';
     document.getElementById('usersBadge').textContent = stats.totalUsers || 0;
 
-    // AI Keys — show status chips, never load actual values
-    document.getElementById('groqKeyStatus').textContent    = cfg.groqApiKey    ? '✅ Saved' : '❌ Not set';
-    document.getElementById('groqKeyStatus').style.color    = cfg.groqApiKey    ? '#1D9E75' : '#E24B4A';
-    document.getElementById('geminiKeyStatus').textContent  = cfg.geminiApiKey  ? '✅ Saved' : '❌ Not set';
-    document.getElementById('geminiKeyStatus').style.color  = cfg.geminiApiKey  ? '#1D9E75' : '#E24B4A';
-    document.getElementById('anthropicKeyStatus').textContent = cfg.anthropicApiKey ? '✅ Saved' : '❌ Not set';
-    document.getElementById('anthropicKeyStatus').style.color = cfg.anthropicApiKey ? '#1D9E75' : '#E24B4A';
-    document.getElementById('gmailPassStatus').textContent  = cfg.gmailAppPassword ? '✅ Saved' : '❌ Not set';
-    document.getElementById('gmailPassStatus').style.color  = cfg.gmailAppPassword ? '#1D9E75' : '#E24B4A';
+    // Show save status using boolean flags (never expose actual keys)
+    function setStatus(id, saved) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = saved ? '✅ Saved' : '❌ Not set';
+      el.style.color = saved ? '#1D9E75' : '#E24B4A';
+    }
+    setStatus('groqKeyStatus',      cfg.groqSaved);
+    setStatus('geminiKeyStatus',    cfg.geminiSaved);
+    setStatus('anthropicKeyStatus', cfg.anthropicSaved);
+    setStatus('gmailPassStatus',    cfg.gmailSaved);
     if (cfg.groqModel) document.getElementById('groqModel').value = cfg.groqModel;
+    if (cfg.dbConnected !== undefined) {
+      document.getElementById('srvStatus').textContent = cfg.dbConnected ? 'DB Connected' : 'DB Disconnected';
+    }
+    selectProvider(cfg.defaultProvider || 'groq');
     if (cfg.groqModel) document.getElementById('groqModel').value = cfg.groqModel;
     selectProvider(cfg.defaultProvider || 'groq');
 
