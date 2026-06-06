@@ -55,7 +55,7 @@ async function getConfig(key, defaultVal = null) {
 }
 
 async function setConfig(key, value) {
-  await ConfigModel.findOneAndUpdate({ key }, { value }, { upsert: true, new: true });
+  await ConfigModel.findOneAndUpdate({ key }, { value }, { upsert: true, returnDocument: 'after' });
 }
 
 async function getAllConfig() {
@@ -144,7 +144,7 @@ app.post('/api/register-user', async (req, res) => {
     await UserModel.findOneAndUpdate(
       { email: profile.email },
       { ...profile, lastSeen: new Date() },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
     console.log('[USER] Registered:', profile.email);
     res.json({ ok: true });
@@ -176,7 +176,8 @@ app.post('/api/send-email', async (req, res) => {
     // Update user stats
     await UserModel.findOneAndUpdate(
       { email: toEmail },
-      { $inc: { formsFilled: 1 }, lastFormTitle: formTitle, lastActivity: new Date(), lastSeen: new Date() }
+      { $inc: { formsFilled: 1 }, lastFormTitle: formTitle, lastActivity: new Date(), lastSeen: new Date() },
+      { returnDocument: 'after' }
     );
 
     const fieldsText = Array.isArray(filledFields)
@@ -198,8 +199,12 @@ app.post('/api/send-email', async (req, res) => {
     }
 
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
       auth: { user: gmailUser, pass: gmailAppPass },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
     });
 
     await transporter.sendMail({
@@ -264,9 +269,14 @@ app.post('/api/admin/test-email', requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Gmail not configured. Go to Email Settings first.' });
   try {
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
       auth: { user: gmailUser, pass: gmailAppPass },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
     });
+    await transporter.verify();
     await transporter.sendMail({
       from: `"AI Web Agent" <${gmailUser}>`,
       to: gmailUser,
@@ -275,6 +285,7 @@ app.post('/api/admin/test-email', requireAdmin, async (req, res) => {
     });
     res.json({ sent: true });
   } catch(err) {
+    console.error('[TEST EMAIL ERROR]', err);
     res.status(500).json({ error: err.message });
   }
 });
