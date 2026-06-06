@@ -1,223 +1,183 @@
-// server.js — AI Web Agent Backend v3
-// Uses MongoDB Atlas for permanent storage
-
 require('dotenv').config();
 const express    = require('express');
 const cors       = require('cors');
 const nodemailer = require('nodemailer');
 const jwt        = require('jsonwebtoken');
 const mongoose   = require('mongoose');
+const path       = require('path');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// ── MongoDB Connection ────────────────────────────────────
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/aiwebagent')
-  .then(() => console.log('[DB] MongoDB connected'))
-  .catch(e => console.error('[DB] Connection error:', e.message));
+// ── MongoDB ───────────────────────────────────────────────
+const MONGODB_URI = process.env.MONGODB_URI || '';
+if (MONGODB_URI) {
+  mongoose.connect(MONGODB_URI)
+    .then(() => { console.log('[DB] MongoDB connected'); initDefaults(); })
+    .catch(e => console.error('[DB] Error:', e.message));
+} else {
+  console.warn('[DB] No MONGODB_URI — using in-memory fallback');
+}
 
 // ── Schemas ───────────────────────────────────────────────
-const ConfigSchema = new mongoose.Schema({
-  key:   { type: String, unique: true },
-  value: mongoose.Schema.Types.Mixed,
+const ConfigSchema = new mongoose.Schema({ key: { type: String, unique: true }, value: mongoose.Schema.Types.Mixed });
+const UserSchema   = new mongoose.Schema({
+  email: { type: String, unique: true }, name: String, first: String, last: String,
+  phone: String, dob: String, street: String, city: String, state: String,
+  zip: String, country: String, company: String, job: String, web: String,
+  formsFilled: { type: Number, default: 0 }, lastFormTitle: String,
+  lastActivity: Date, lastSeen: { type: Date, default: Date.now }, createdAt: { type: Date, default: Date.now }
 });
-const ConfigModel = mongoose.model('Config', ConfigSchema);
+const Config = mongoose.model('Config', ConfigSchema);
+const User   = mongoose.model('User', UserSchema);
 
-const UserSchema = new mongoose.Schema({
-  email:         { type: String, unique: true },
-  name:          String,
-  first:         String,
-  last:          String,
-  phone:         String,
-  dob:           String,
-  street:        String,
-  city:          String,
-  state:         String,
-  zip:           String,
-  country:       String,
-  company:       String,
-  job:           String,
-  web:           String,
-  formsFilled:   { type: Number, default: 0 },
-  lastFormTitle: String,
-  lastActivity:  Date,
-  lastSeen:      { type: Date, default: Date.now },
-  createdAt:     { type: Date, default: Date.now },
-});
-const UserModel = mongoose.model('User', UserSchema);
+// ── In-memory fallback ────────────────────────────────────
+let memConfig = {
+  gmailUser: process.env.GMAIL_USER || '', gmailAppPassword: process.env.GMAIL_APP_PASSWORD || '',
+  groqApiKey: process.env.GROQ_API_KEY || '', groqModel: 'llama-3.3-70b-versatile',
+  geminiApiKey: '', anthropicApiKey: '', defaultProvider: 'groq',
+  emailSubject: '✅ Form Submitted — {{form_title}}',
+  emailBody: 'Hi {{to_name}},\n\nYour form "{{form_title}}" was successfully filled and submitted by AI Web Agent.\n\n📋 What was filled:\n{{fields_text}}\n\n🔗 Form URL: {{form_url}}\n🕐 Submitted at: {{submitted_at}}\n\n— AI Web Agent',
+  agentEnabled: true, maxEmailsPerDay: 100, emailsSentToday: 0, lastResetDate: new Date().toDateString()
+};
+let memUsers = {};
 
-// ── Config helpers ────────────────────────────────────────
-async function getConfig(key, defaultVal = null) {
+const isDBConnected = () => mongoose.connection.readyState === 1;
+
+async function getCfg(key, def = '') {
+  if (!isDBConnected()) return memConfig[key] !== undefined ? memConfig[key] : def;
+  try { const d = await Config.findOne({ key }); return d ? d.value : def; } catch(e) { return def; }
+}
+
+async function setCfg(key, value) {
+  memConfig[key] = value;
+  if (!isDBConnected()) return;
+  try { await Config.findOneAndUpdate({ key }, { value }, { upsert: true }); } catch(e) { console.error('[DB setCfg]', e.message); }
+}
+
+async function getAllCfg() {
+  if (!isDBConnected()) return { ...memConfig };
   try {
-    const doc = await ConfigModel.findOne({ key });
-    return doc ? doc.value : defaultVal;
-  } catch(e) { return defaultVal; }
+    const docs = await Config.find({});
+    const result = { ...memConfig };
+    docs.forEach(d => result[d.key] = d.value);
+    return result;
+  } catch(e) { return { ...memConfig }; }
 }
 
-async function setConfig(key, value) {
-  await ConfigModel.findOneAndUpdate({ key }, { value }, { upsert: true, returnDocument: 'after' });
-}
-
-async function getAllConfig() {
-  const docs = await ConfigModel.find({});
-  const result = {};
-  docs.forEach(d => result[d.key] = d.value);
-  return result;
-}
-
-// ── Default config (only set if not already in DB) ───────
 async function initDefaults() {
   const defaults = {
-    gmailUser:        process.env.GMAIL_USER         || '',
-    gmailAppPassword: process.env.GMAIL_APP_PASSWORD  || '',
-    groqApiKey:       process.env.GROQ_API_KEY        || '',
-    groqModel:        'llama-3.3-70b-versatile',
-    geminiApiKey:     process.env.GEMINI_API_KEY       || '',
-    anthropicApiKey:  process.env.ANTHROPIC_API_KEY    || '',
-    defaultProvider:  'groq',
-    emailSubject:     '✅ Form Submitted — {{form_title}}',
-    emailBody:        'Hi {{to_name}},\n\nYour form "{{form_title}}" was successfully filled and submitted by AI Web Agent.\n\n📋 What was filled:\n{{fields_text}}\n\n🔗 Form URL: {{form_url}}\n🕐 Submitted at: {{submitted_at}}\n\n— AI Web Agent',
-    agentEnabled:     true,
-    maxEmailsPerDay:  100,
-    emailsSentToday:  0,
-    lastResetDate:    new Date().toDateString(),
+    gmailUser: process.env.GMAIL_USER || '', gmailAppPassword: process.env.GMAIL_APP_PASSWORD || '',
+    groqApiKey: process.env.GROQ_API_KEY || '', groqModel: 'llama-3.3-70b-versatile',
+    geminiApiKey: '', anthropicApiKey: '', defaultProvider: 'groq',
+    emailSubject: '✅ Form Submitted — {{form_title}}',
+    emailBody: 'Hi {{to_name}},\n\nYour form "{{form_title}}" was successfully filled and submitted by AI Web Agent.\n\n📋 What was filled:\n{{fields_text}}\n\n🔗 Form URL: {{form_url}}\n🕐 Submitted at: {{submitted_at}}\n\n— AI Web Agent',
+    agentEnabled: true, maxEmailsPerDay: 100, emailsSentToday: 0, lastResetDate: new Date().toDateString()
   };
   for (const [key, value] of Object.entries(defaults)) {
-    const existing = await ConfigModel.findOne({ key });
-    if (!existing) await setConfig(key, value);
+    const existing = await Config.findOne({ key });
+    if (!existing) await setCfg(key, value);
+    else memConfig[key] = existing.value;
   }
   console.log('[DB] Defaults initialized');
 }
 
+async function resetDailyCount() {
+  const today = new Date().toDateString();
+  const last  = await getCfg('lastResetDate', '');
+  if (last !== today) { await setCfg('emailsSentToday', 0); await setCfg('lastResetDate', today); }
+}
+
+function createTransporter(user, pass) {
+  return nodemailer.createTransport({
+    host: 'smtp.gmail.com', port: 465, secure: true,
+    auth: { user, pass },
+    connectionTimeout: 15000, greetingTimeout: 15000, socketTimeout: 15000,
+  });
+}
+
+// ── Middleware ────────────────────────────────────────────
 app.use(cors({ origin: '*' }));
 app.use(express.json());
-app.use(express.static(__dirname));
-app.get('/', (req, res) => res.sendFile(__dirname + '/index.html'));
+app.use(express.static(path.join(__dirname)));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-// ── Admin auth ────────────────────────────────────────────
 function requireAdmin(req, res, next) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
-  try {
-    jwt.verify(auth.slice(7), process.env.ADMIN_SECRET || 'secret123');
-    next();
-  } catch (e) { res.status(401).json({ error: 'Invalid token' }); }
-}
-
-async function resetDailyCountIfNeeded() {
-  const today = new Date().toDateString();
-  const lastReset = await getConfig('lastResetDate', '');
-  if (lastReset !== today) {
-    await setConfig('emailsSentToday', 0);
-    await setConfig('lastResetDate', today);
-  }
+  try { jwt.verify(auth.slice(7), process.env.ADMIN_SECRET || 'secret123'); next(); }
+  catch (e) { res.status(401).json({ error: 'Invalid token' }); }
 }
 
 // ════════════════════════════════════════════════════════
 // PUBLIC ROUTES
 // ════════════════════════════════════════════════════════
-
 app.get('/api/health', async (req, res) => {
-  const agentEnabled = await getConfig('agentEnabled', true);
-  res.json({ status: 'ok', agentEnabled });
+  res.json({ status: 'ok', db: isDBConnected() ? 'connected' : 'disconnected', agentEnabled: await getCfg('agentEnabled', true) });
 });
 
-// Extension fetches AI keys from backend
 app.get('/api/agent-config', async (req, res) => {
-  const agentEnabled = await getConfig('agentEnabled', true);
-  if (!agentEnabled) return res.status(403).json({ error: 'Agent disabled by admin.' });
+  const enabled = await getCfg('agentEnabled', true);
+  if (!enabled) return res.status(403).json({ error: 'Agent disabled by admin.' });
   res.json({
-    groqApiKey:      await getConfig('groqApiKey', ''),
-    groqModel:       await getConfig('groqModel', 'llama-3.3-70b-versatile'),
-    geminiApiKey:    await getConfig('geminiApiKey', ''),
-    anthropicApiKey: await getConfig('anthropicApiKey', ''),
-    defaultProvider: await getConfig('defaultProvider', 'groq'),
+    groqApiKey:      await getCfg('groqApiKey', ''),
+    groqModel:       await getCfg('groqModel', 'llama-3.3-70b-versatile'),
+    geminiApiKey:    await getCfg('geminiApiKey', ''),
+    anthropicApiKey: await getCfg('anthropicApiKey', ''),
+    defaultProvider: await getCfg('defaultProvider', 'groq'),
     agentEnabled:    true,
   });
 });
 
-// Register/update user profile
 app.post('/api/register-user', async (req, res) => {
-  const { profile } = req.body;
-  if (!profile?.email) return res.status(400).json({ error: 'Email required' });
   try {
-    await UserModel.findOneAndUpdate(
-      { email: profile.email },
-      { ...profile, lastSeen: new Date() },
-      { upsert: true, returnDocument: 'after' }
-    );
-    console.log('[USER] Registered:', profile.email);
+    const { profile } = req.body;
+    if (!profile?.email) return res.status(400).json({ error: 'Email required' });
+    if (isDBConnected()) {
+      await User.findOneAndUpdate({ email: profile.email }, { ...profile, lastSeen: new Date() }, { upsert: true });
+    } else {
+      memUsers[profile.email] = { ...profile, lastSeen: new Date() };
+    }
     res.json({ ok: true });
-  } catch(e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// Send confirmation email
 app.post('/api/send-email', async (req, res) => {
   try {
-    await resetDailyCountIfNeeded();
-
-    const agentEnabled    = await getConfig('agentEnabled', true);
-    const emailsSentToday = await getConfig('emailsSentToday', 0);
-    const maxEmailsPerDay = await getConfig('maxEmailsPerDay', 100);
-    const gmailUser       = await getConfig('gmailUser', '');
-    const gmailAppPass    = await getConfig('gmailAppPassword', '');
-    const emailSubject    = await getConfig('emailSubject', '✅ Form Submitted — {{form_title}}');
-    const emailBody       = await getConfig('emailBody', '');
-
-    if (!agentEnabled)                    return res.status(403).json({ error: 'Agent disabled by admin.' });
-    if (emailsSentToday >= maxEmailsPerDay) return res.status(429).json({ error: 'Daily email limit reached.' });
-    if (!gmailUser || !gmailAppPass)       return res.status(500).json({ error: 'Email not configured by admin yet.' });
+    await resetDailyCount();
+    const [enabled, sentToday, maxPerDay, gmailUser, gmailPass, subject, body] = await Promise.all([
+      getCfg('agentEnabled', true), getCfg('emailsSentToday', 0), getCfg('maxEmailsPerDay', 100),
+      getCfg('gmailUser', ''), getCfg('gmailAppPassword', ''),
+      getCfg('emailSubject', ''), getCfg('emailBody', '')
+    ]);
+    if (!enabled)              return res.status(403).json({ error: 'Agent disabled.' });
+    if (sentToday >= maxPerDay) return res.status(429).json({ error: 'Daily email limit reached.' });
+    if (!gmailUser || !gmailPass) return res.status(500).json({ error: 'Email not configured by admin yet. Please set Gmail credentials in Admin Panel.' });
 
     const { toEmail, toName, formTitle, formUrl, filledFields, submittedAt } = req.body;
     if (!toEmail) return res.status(400).json({ error: 'toEmail required' });
 
-    // Update user stats
-    await UserModel.findOneAndUpdate(
-      { email: toEmail },
-      { $inc: { formsFilled: 1 }, lastFormTitle: formTitle, lastActivity: new Date(), lastSeen: new Date() },
-      { returnDocument: 'after' }
-    );
+    if (isDBConnected()) {
+      await User.findOneAndUpdate({ email: toEmail }, { $inc: { formsFilled: 1 }, lastFormTitle: formTitle, lastActivity: new Date() });
+    }
 
-    const fieldsText = Array.isArray(filledFields)
-      ? filledFields.map(f => `• ${f.label}: ${f.value}`).join('\n') : '';
-
+    const fieldsText = Array.isArray(filledFields) ? filledFields.map(f => `• ${f.label}: ${f.value}`).join('\n') : '';
     const vars = {
-      '{{to_name}}':      toName || toEmail,
-      '{{to_email}}':     toEmail,
-      '{{form_title}}':   formTitle || 'Web Form',
-      '{{form_url}}':     formUrl || '',
-      '{{fields_text}}':  fieldsText,
+      '{{to_name}}': toName||toEmail, '{{to_email}}': toEmail,
+      '{{form_title}}': formTitle||'Web Form', '{{form_url}}': formUrl||'',
+      '{{fields_text}}': fieldsText,
       '{{submitted_at}}': submittedAt || new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
     };
 
-    let subject = emailSubject, body = emailBody;
-    for (const [k, v] of Object.entries(vars)) {
-      subject = subject.replaceAll(k, v);
-      body    = body.replaceAll(k, v);
-    }
+    let sub = subject, bod = body;
+    for (const [k,v] of Object.entries(vars)) { sub = sub.replaceAll(k,v); bod = bod.replaceAll(k,v); }
 
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: { user: gmailUser, pass: gmailAppPass },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-    });
-
-    await transporter.sendMail({
-      from: `"AI Web Agent" <${gmailUser}>`,
-      to: toEmail, subject, text: body,
-      html: `<pre style="font-family:sans-serif;white-space:pre-wrap">${body}</pre>`,
-    });
-
-    await setConfig('emailsSentToday', emailsSentToday + 1);
-    console.log(`[EMAIL] ✅ Sent to ${toEmail} — ${formTitle}`);
+    const t = createTransporter(gmailUser, gmailPass);
+    await t.sendMail({ from: `"AI Web Agent" <${gmailUser}>`, to: toEmail, subject: sub, text: bod });
+    await setCfg('emailsSentToday', sentToday + 1);
+    console.log(`[EMAIL] ✅ Sent to ${toEmail}`);
     res.json({ sent: true });
-
-  } catch (err) {
+  } catch(err) {
     console.error('[EMAIL ERROR]', err.message);
     res.status(500).json({ error: err.message });
   }
@@ -226,104 +186,111 @@ app.post('/api/send-email', async (req, res) => {
 // ════════════════════════════════════════════════════════
 // ADMIN ROUTES
 // ════════════════════════════════════════════════════════
-
 app.post('/api/admin/login', (req, res) => {
   const { username, password } = req.body;
-  if (username !== (process.env.ADMIN_USERNAME || 'admin') || password !== process.env.ADMIN_PASSWORD)
+  if (username !== (process.env.ADMIN_USERNAME||'admin') || password !== process.env.ADMIN_PASSWORD)
     return res.status(401).json({ error: 'Wrong credentials' });
-  const token = jwt.sign({ admin: true }, process.env.ADMIN_SECRET || 'secret123', { expiresIn: '7d' });
+  const token = jwt.sign({ admin: true }, process.env.ADMIN_SECRET||'secret123', { expiresIn: '7d' });
   res.json({ token });
 });
 
 app.get('/api/admin/config', requireAdmin, async (req, res) => {
-  const cfg = await getAllConfig();
-  // Mask sensitive values
-  if (cfg.gmailAppPassword) cfg.gmailAppPassword = '••••••••';
-  if (cfg.groqApiKey)       cfg.groqApiKey       = '••••' + cfg.groqApiKey.slice(-6);
-  if (cfg.geminiApiKey)     cfg.geminiApiKey     = cfg.geminiApiKey ? '••••' + cfg.geminiApiKey.slice(-4) : '';
-  if (cfg.anthropicApiKey)  cfg.anthropicApiKey  = cfg.anthropicApiKey ? '••••' + cfg.anthropicApiKey.slice(-6) : '';
-  res.json(cfg);
+  try {
+    const cfg = await getAllCfg();
+    // Return boolean flags for saved keys (never return actual values)
+    res.json({
+      gmailUser:        cfg.gmailUser || '',
+      gmailSaved:       !!(cfg.gmailAppPassword && cfg.gmailAppPassword.length > 5),
+      groqSaved:        !!(cfg.groqApiKey && cfg.groqApiKey.length > 5),
+      geminiSaved:      !!(cfg.geminiApiKey && cfg.geminiApiKey.length > 5),
+      anthropicSaved:   !!(cfg.anthropicApiKey && cfg.anthropicApiKey.length > 5),
+      groqModel:        cfg.groqModel || 'llama-3.3-70b-versatile',
+      defaultProvider:  cfg.defaultProvider || 'groq',
+      emailSubject:     cfg.emailSubject || '',
+      emailBody:        cfg.emailBody || '',
+      agentEnabled:     cfg.agentEnabled !== false,
+      maxEmailsPerDay:  cfg.maxEmailsPerDay || 100,
+      emailsSentToday:  cfg.emailsSentToday || 0,
+      dbConnected:      isDBConnected(),
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/admin/config', requireAdmin, async (req, res) => {
-  const allowed = ['gmailUser','gmailAppPassword','emailSubject','emailBody',
-    'groqApiKey','groqModel','geminiApiKey','anthropicApiKey','defaultProvider',
-    'agentEnabled','maxEmailsPerDay'];
-  for (const key of allowed) {
-    if (req.body[key] === undefined) continue;
-    const val = req.body[key];
-    // Skip empty strings and masked values
-    if (val === '' || val === null) continue;
-    if (String(val).includes('••••')) continue;
-    const finalVal = key === 'maxEmailsPerDay' ? parseInt(val) : val;
-    await setConfig(key, finalVal);
-  }
-  console.log('[ADMIN] Config updated');
-  res.json({ success: true });
+  try {
+    const allowed = ['gmailUser','gmailAppPassword','emailSubject','emailBody',
+      'groqApiKey','groqModel','geminiApiKey','anthropicApiKey','defaultProvider','agentEnabled','maxEmailsPerDay'];
+    for (const key of allowed) {
+      if (req.body[key] === undefined || req.body[key] === '' || req.body[key] === null) continue;
+      await setCfg(key, key === 'maxEmailsPerDay' ? parseInt(req.body[key]) : req.body[key]);
+    }
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/admin/force-set', requireAdmin, async (req, res) => {
+  try {
+    const { key, value } = req.body;
+    const allowed = ['gmailUser','gmailAppPassword','groqApiKey','geminiApiKey','anthropicApiKey'];
+    if (!allowed.includes(key)) return res.status(400).json({ error: 'Key not allowed' });
+    await setCfg(key, value);
+    console.log('[ADMIN] Force set:', key);
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/admin/test-email', requireAdmin, async (req, res) => {
-  const gmailUser    = await getConfig('gmailUser', '');
-  const gmailAppPass = await getConfig('gmailAppPassword', '');
-  if (!gmailUser || !gmailAppPass)
-    return res.status(400).json({ error: 'Gmail not configured. Go to Email Settings first.' });
   try {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: { user: gmailUser, pass: gmailAppPass },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-    });
-    await transporter.verify();
-    await transporter.sendMail({
-      from: `"AI Web Agent" <${gmailUser}>`,
-      to: gmailUser,
+    const gmailUser = await getCfg('gmailUser', '');
+    const gmailPass = await getCfg('gmailAppPassword', '');
+    if (!gmailUser) return res.status(400).json({ error: 'Gmail address not set. Go to Email Settings.' });
+    if (!gmailPass || gmailPass.length < 10) return res.status(400).json({ error: 'Gmail App Password not set or too short. Use Force Reset Password.' });
+    const t = createTransporter(gmailUser, gmailPass);
+    await t.verify();
+    await t.sendMail({
+      from: `"AI Web Agent" <${gmailUser}>`, to: gmailUser,
       subject: '✅ Test — AI Web Agent email is working!',
-      text: 'Congratulations! Your AI Web Agent email system is configured correctly.\n\nUsers will now receive confirmation emails after every form submission.',
+      text: 'Your AI Web Agent email system is configured correctly!\n\nUsers will receive confirmation emails after every form submission.',
     });
     res.json({ sent: true });
   } catch(err) {
-    console.error('[TEST EMAIL ERROR]', err);
+    console.error('[TEST EMAIL]', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.get('/api/admin/stats', requireAdmin, async (req, res) => {
-  await resetDailyCountIfNeeded();
-  res.json({
-    emailsSentToday: await getConfig('emailsSentToday', 0),
-    maxEmailsPerDay: await getConfig('maxEmailsPerDay', 100),
-    lastResetDate:   await getConfig('lastResetDate', ''),
-    agentEnabled:    await getConfig('agentEnabled', true),
-    totalUsers:      await UserModel.countDocuments(),
-  });
+  try {
+    await resetDailyCount();
+    const totalUsers = isDBConnected() ? await User.countDocuments() : Object.keys(memUsers).length;
+    res.json({
+      emailsSentToday: await getCfg('emailsSentToday', 0),
+      maxEmailsPerDay: await getCfg('maxEmailsPerDay', 100),
+      lastResetDate:   await getCfg('lastResetDate', ''),
+      agentEnabled:    await getCfg('agentEnabled', true),
+      totalUsers, dbConnected: isDBConnected(),
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/admin/users', requireAdmin, async (req, res) => {
-  const users = await UserModel.find().sort({ lastSeen: -1 });
-  res.json(users);
+  try {
+    if (isDBConnected()) {
+      const users = await User.find().sort({ lastSeen: -1 });
+      res.json(users);
+    } else {
+      res.json(Object.values(memUsers).sort((a,b) => new Date(b.lastSeen) - new Date(a.lastSeen)));
+    }
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/admin/users/:email', requireAdmin, async (req, res) => {
-  await UserModel.deleteOne({ email: decodeURIComponent(req.params.email) });
-  res.json({ ok: true });
+  try {
+    const email = decodeURIComponent(req.params.email);
+    if (isDBConnected()) await User.deleteOne({ email });
+    else delete memUsers[email];
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// Force reset a specific config value (for fixing stuck values)
-app.post('/api/admin/force-set', requireAdmin, async (req, res) => {
-  const { key, value } = req.body;
-  const allowed = ['gmailUser','gmailAppPassword','groqApiKey','geminiApiKey','anthropicApiKey'];
-  if (!allowed.includes(key)) return res.status(400).json({ error: 'Key not allowed' });
-  await ConfigModel.findOneAndUpdate({ key }, { value }, { upsert: true, new: true });
-  console.log('[ADMIN] Force set:', key);
-  res.json({ success: true });
-});
-
-// ── Start ─────────────────────────────────────────────────
-app.listen(PORT, async () => {
-  console.log(`AI Web Agent Backend v3 running on port ${PORT}`);
-  // Wait for DB then init defaults
-  setTimeout(initDefaults, 2000);
-});
+app.listen(PORT, () => console.log(`AI Web Agent Backend v3 running on port ${PORT}`));
