@@ -387,52 +387,64 @@ function authFetch(url, opts={}) {
   return fetch(API+url, opts);
 }
 
+function setStatus(id, saved) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = saved ? '✅ Saved' : '❌ Not set';
+  el.style.color = saved ? '#1D9E75' : '#E24B4A';
+}
+
 async function loadAll() {
   try {
-    const [cfgR, statsR] = await Promise.all([authFetch('/api/admin/config'), authFetch('/api/admin/stats')]);
+    // Load stats (public - no auth needed)
+    const statsR = await fetch(API + '/api/admin/stats');
+    if (statsR.ok) {
+      const stats = await statsR.json();
+      const el = (id) => document.getElementById(id);
+      if (el('ovUsers'))    el('ovUsers').textContent    = stats.totalUsers || 0;
+      if (el('ovEmails'))   el('ovEmails').textContent   = stats.emailsSentToday || 0;
+      if (el('ovEmailSub')) el('ovEmailSub').textContent = 'of ' + (stats.maxEmailsPerDay||100) + ' max';
+      if (el('ovStatus'))   { el('ovStatus').textContent = stats.agentEnabled ? 'ON':'OFF'; el('ovStatus').style.color = stats.agentEnabled ? '#1D9E75':'#E24B4A'; }
+      if (el('usersBadge')) el('usersBadge').textContent = stats.totalUsers || 0;
+      if (el('srvStatus'))  el('srvStatus').textContent  = stats.dbConnected ? 'DB Connected' : 'Memory Only';
+    }
+
+    // Load config (needs auth)
+    const cfgR = await authFetch('/api/admin/config');
+    if (!cfgR.ok) { console.warn('Config fetch failed:', cfgR.status); return; }
     const cfg = await cfgR.json();
-    const stats = await statsR.json();
+    if (!cfg) { console.warn('Config is null'); return; }
 
-    // Overview
-    document.getElementById('ovUsers').textContent = stats.totalUsers || 0;
-    document.getElementById('ovEmails').textContent = stats.emailsSentToday;
-    document.getElementById('ovEmailSub').textContent = 'of ' + stats.maxEmailsPerDay + ' max';
-    document.getElementById('ovStatus').textContent = stats.agentEnabled ? 'ON' : 'OFF';
-    document.getElementById('ovStatus').style.color = stats.agentEnabled ? '#1D9E75' : '#E24B4A';
-    document.getElementById('usersBadge').textContent = stats.totalUsers || 0;
+    // AI Keys status
+    setStatus('groqKeyStatus',      !!cfg.groqSaved);
+    setStatus('geminiKeyStatus',    !!cfg.geminiSaved);
+    setStatus('anthropicKeyStatus', !!cfg.anthropicSaved);
+    setStatus('resendStatus',       !!cfg.resendSaved);
 
-    // Show save status using boolean flags (never expose actual keys)
-    function setStatus(id, saved) {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.textContent = saved ? '✅ Saved' : '❌ Not set';
-      el.style.color = saved ? '#1D9E75' : '#E24B4A';
-    }
-    setStatus('groqKeyStatus',      cfg.groqSaved);
-    setStatus('geminiKeyStatus',    cfg.geminiSaved);
-    setStatus('anthropicKeyStatus', cfg.anthropicSaved);
-    setStatus('gmailPassStatus',    cfg.gmailSaved);
-    if (cfg.groqModel) document.getElementById('groqModel').value = cfg.groqModel;
-    if (cfg.dbConnected !== undefined) {
-      document.getElementById('srvStatus').textContent = cfg.dbConnected ? 'DB Connected' : 'DB Disconnected';
-    }
-    selectProvider(cfg.defaultProvider || 'groq');
-    if (cfg.groqModel) document.getElementById('groqModel').value = cfg.groqModel;
+    // AI Keys fields
+    const groqModelEl = document.getElementById('groqModel');
+    if (groqModelEl && cfg.groqModel) groqModelEl.value = cfg.groqModel;
     selectProvider(cfg.defaultProvider || 'groq');
 
-    // Email — show status, never load actual keys
-    document.getElementById('fromEmail').value = cfg.fromEmail || '';
-    document.getElementById('resendKey').value = '';
-    setStatus('resendStatus', cfg.resendSaved);
+    // Email
+    const fromEmailEl = document.getElementById('fromEmail');
+    const resendKeyEl = document.getElementById('resendKey');
+    if (fromEmailEl) fromEmailEl.value = cfg.fromEmail || '';
+    if (resendKeyEl) resendKeyEl.value = '';
 
     // Template
-    document.getElementById('emailSubject').value = cfg.emailSubject || '';
-    document.getElementById('emailBody').value    = cfg.emailBody    || '';
+    const subEl  = document.getElementById('emailSubject');
+    const bodyEl = document.getElementById('emailBody');
+    if (subEl  && cfg.emailSubject) subEl.value  = cfg.emailSubject;
+    if (bodyEl && cfg.emailBody)    bodyEl.value = cfg.emailBody;
 
     // Control
-    document.getElementById('agentEnabled').checked = cfg.agentEnabled !== false;
-    document.getElementById('maxEmails').value = cfg.maxEmailsPerDay || 100;
-  } catch(e) { console.error(e); }
+    const agentEl  = document.getElementById('agentEnabled');
+    const maxEl    = document.getElementById('maxEmails');
+    if (agentEl) agentEl.checked = cfg.agentEnabled !== false;
+    if (maxEl)   maxEl.value     = cfg.maxEmailsPerDay || 100;
+
+  } catch(e) { console.error('loadAll error:', e); }
 }
 
 async function loadUsers() {
