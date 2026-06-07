@@ -260,16 +260,24 @@ nav{padding:10px 0;flex:1;overflow-y:auto}
       <div class="page-title">Email Settings</div>
       <div class="page-sub">Configure Gmail to send confirmation emails to all users automatically</div>
       <div class="card">
-        <div class="card-title">Gmail Configuration</div>
-        <div class="hint" style="margin-bottom:12px">Use Gmail + App Password. Get App Password: Google Account → Security → 2-Step Verification → App Passwords</div>
-        <label>Gmail Address</label>
-        <input id="gmailUser" type="email" placeholder="your@gmail.com"/>
-        <label>Gmail App Password <span id="gmailPassStatus" style="font-size:11px;margin-left:8px">❌ Not set</span></label>
-        <input id="gmailPass" type="password" placeholder="Enter 16-char app password (no spaces)"/>
-        <div class="hint">16-character app password from Google — NOT your regular Gmail password</div>
+        <div class="card-title">📧 Email Configuration (Resend)</div>
+        <div class="hint" style="margin-bottom:12px;line-height:1.7">
+          Uses <strong style="color:#1D9E75">Resend</strong> — works perfectly on Render, 100 emails/day free.<br>
+          1. Go to <a href="https://resend.com" target="_blank" style="color:#1D9E75">resend.com</a> → Sign up free<br>
+          2. Click <strong>API Keys</strong> → <strong>Create API Key</strong> → copy it<br>
+          3. Paste below → Save → done!
+        </div>
+        <label>Resend API Key <span id="resendStatus" style="font-size:11px;margin-left:8px">❌ Not set</span></label>
+        <input id="resendKey" type="password" placeholder="re_xxxxxxxxxxxx"/>
+        <div class="hint">Get free key at resend.com — 100 emails/day, no credit card needed</div>
+        <label style="margin-top:12px">From Email Address</label>
+        <input id="fromEmail" type="text" placeholder="AI Web Agent &lt;you@yourdomain.com&gt;"/>
+        <div class="hint">
+          Free plan: use <strong>onboarding@resend.dev</strong> (Resend's default, works immediately)<br>
+          Custom domain: add your domain in Resend dashboard first
+        </div>
         <div class="btn-row">
           <button class="btn btn-primary btn-sm" onclick="saveEmailSettings()">Save Email Settings</button>
-          <button class="btn btn-secondary btn-sm" onclick="forceSetPassword()">Force Reset Password</button>
           <button class="btn btn-secondary btn-sm" onclick="sendTestEmail()">Send Test Email</button>
         </div>
         <div class="msg ok" id="emailMsg"></div>
@@ -412,10 +420,10 @@ async function loadAll() {
     if (cfg.groqModel) document.getElementById('groqModel').value = cfg.groqModel;
     selectProvider(cfg.defaultProvider || 'groq');
 
-    // Email — never load masked password, user must re-enter
-    document.getElementById('gmailUser').value  = cfg.gmailUser || '';
-    document.getElementById('gmailPass').value  = '';  // always blank for security
-    document.getElementById('gmailPass').placeholder = cfg.gmailAppPassword ? 'Already saved — enter new to change' : 'xxxx xxxx xxxx xxxx (no spaces)';
+    // Email — show status, never load actual keys
+    document.getElementById('fromEmail').value = cfg.fromEmail || '';
+    document.getElementById('resendKey').value = '';
+    setStatus('resendStatus', cfg.resendSaved);
 
     // Template
     document.getElementById('emailSubject').value = cfg.emailSubject || '';
@@ -490,17 +498,16 @@ async function saveAiKeys() {
 }
 
 async function saveEmailSettings() {
-  const gmailUser = document.getElementById('gmailUser').value.trim();
-  const gmailPass = document.getElementById('gmailPass').value.trim();
-  const body = { gmailUser };
-  // Only update password if user actually typed something new
-  if (gmailPass && !gmailPass.includes('••••')) {
-    body.gmailAppPassword = gmailPass;
-  }
+  const resendKey = document.getElementById('resendKey').value.trim();
+  const fromEmail = document.getElementById('fromEmail').value.trim();
+  const body = {};
+  if (fromEmail) body.fromEmail = fromEmail;
+  if (resendKey) body.resendApiKey = resendKey;
+  if (!resendKey && !fromEmail) { showMsg('emailMsg', '✗ Please enter at least the Resend API Key', false); return; }
   const r = await authFetch('/api/admin/config', { method:'POST', body: JSON.stringify(body) });
   const d = await r.json();
-  showMsg('emailMsg', d.success ? '✓ Email settings saved!' : '✗ '+d.error, d.success);
-  loadAll();
+  showMsg('emailMsg', d.success ? '✓ Email settings saved! Click Send Test Email to verify.' : '✗ '+d.error, d.success);
+  if (d.success) { document.getElementById('resendKey').value = ''; loadAll(); }
 }
 
 async function saveTemplate() {
@@ -566,17 +573,6 @@ function timeAgo(iso) {
   if (s < 3600) return Math.floor(s/60) + 'm ago';
   if (s < 86400) return Math.floor(s/3600) + 'h ago';
   return Math.floor(s/86400) + 'd ago';
-}
-
-async function forceSetPassword() {
-  const pass = prompt('Enter the exact Gmail App Password (16 chars, no spaces):');
-  if (!pass || pass.length < 10) { alert('Invalid password'); return; }
-  const r = await authFetch('/api/admin/force-set', {
-    method: 'POST',
-    body: JSON.stringify({ key: 'gmailAppPassword', value: pass.replace(/\s/g,'') })
-  });
-  const d = await r.json();
-  showMsg('emailMsg', d.success ? '✓ Password force-reset! Now click Send Test Email.' : '✗ '+d.error, d.success);
 }
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
