@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 // ── MongoDB ───────────────────────────────────────────────
 if (process.env.MONGODB_URI) {
   mongoose.connect(process.env.MONGODB_URI)
-    .then(() => { console.log('[DB] Connected'); initDefaults(); })
+    .then(async () => { console.log('[DB] Connected'); await syncMemFromDB(); initDefaults(); })
     .catch(e => console.error('[DB] Error:', e.message));
 }
 
@@ -58,10 +58,19 @@ async function getAllCfg() {
   if (!isDB()) return { ...mem };
   try {
     const docs = await Config.find({});
-    const result = { ...mem };
-    docs.forEach(d => { result[d.key] = d.value; mem[d.key] = d.value; }); // sync to mem cache
-    return result;
+    docs.forEach(d => { mem[d.key] = d.value; }); // always sync DB into mem
+    return { ...mem };
   } catch { return { ...mem }; }
+}
+
+// Sync all DB values into mem on startup
+async function syncMemFromDB() {
+  if (!isDB()) return;
+  try {
+    const docs = await Config.find({});
+    docs.forEach(d => { mem[d.key] = d.value; });
+    console.log('[DB] Memory synced from DB');
+  } catch(e) { console.error('[DB sync]', e.message); }
 }
 
 async function initDefaults() {
@@ -226,8 +235,14 @@ app.post('/api/admin/test-email', requireAdmin, async (req, res) => {
     const fromEmail = await getCfg('fromEmail', '');
     const resendKey = await getCfg('resendApiKey', '');
     if (!resendKey) return res.status(400).json({ error: 'Resend API key not set. Add it in Email Settings.' });
-    const toAddr = fromEmail.match(/[\w.+-]+@[\w-]+\.[\w.]+/)?.[0] || '';
-    if (!toAddr) return res.status(400).json({ error: 'From Email address is invalid.' });
+    // Extract email from "Name <email>" format or plain email
+    let toAddr = fromEmail;
+    const match = fromEmail.match(/<([^>]+)>/);
+    if (match) toAddr = match[1];
+    if (!toAddr || !toAddr.includes('@')) {
+      // Fall back to sending to onboarding@resend.dev for test
+      toAddr = 'onboarding@resend.dev';
+    }
     await sendEmail(toAddr, '✅ Test — AI Web Agent email is working!',
       'Congratulations! Your AI Web Agent email system is configured correctly.\n\nUsers will receive confirmation emails after every form submission.');
     res.json({ sent: true });
